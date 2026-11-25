@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TickTick — Safari Web App</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --tt-blue: #4772FA;
+      --tt-blue-hover: #365EE0;
+      --tt-blue-soft: rgba(71, 114, 250, 0.1);
+      --tt-red: #E14D43;
+      --tt-amber: #F59E0B;
+      --tt-gray: #9CA3AF;
+      --bg-app: #FFFFFF;
+      --bg-sidebar: #F6F7F9;
+      --bg-rail: #4772FA;
+      --bg-hover: #EFF1F5;
+      --bg-card: #FFFFFF;
+      --border-subtle: #E5E7EB;
+      --text-primary: #1F2329;
+      --text-secondary: #646A73;
+      --text-muted: #8F959E;
+      --safari-bar: #F1F2F4;
+      --safari-input: #E3E5E8;
+    }
+
+    .theme-dark {
+      --bg-app: #18191C;
+      --bg-sidebar: #202126;
+      --bg-rail: #141518;
+      --bg-hover: #2A2C32;
+      --bg-card: #22242A;
+      --border-subtle: #2E3038;
+      --text-primary: #ECEEF2;
+      --text-secondary: #A1A6B0;
+      --text-muted: #6E737D;
+      --safari-bar: #26272B;
+      --safari-input: #1A1B1E;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: rgba(156, 163, 175, 0.35);
+      border-radius: 9999px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: rgba(156, 163, 175, 0.6);
+    }
+
+    .tt-checkbox {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border: 1.75px solid var(--cb-color, #9CA3AF);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.16s ease;
+      flex-shrink: 0;
+      background: transparent;
+    }
+    .tt-checkbox:hover {
+      background: rgba(71, 114, 250, 0.08);
+      transform: scale(1.05);
+    }
+    .tt-checkbox.checked {
+      background: var(--cb-color, #4772FA);
+      border-color: var(--cb-color, #4772FA);
+    }
+
+    .task-row {
+      transition: background-color 0.12s ease;
+    }
+    .task-row:hover {
+      background-color: var(--bg-hover);
+    }
+    .task-row.selected {
+      background-color: var(--tt-blue-soft);
+    }
+
+    @keyframes popCheck {
+      0% { transform: scale(0.8); }
+      50% { transform: scale(1.15); }
+      100% { transform: scale(1); }
+    }
+    .animate-check {
+      animation: popCheck 0.22s ease-out;
+    }
+
+    .safari-toolbar {
+      background: var(--safari-bar);
+      border-bottom: 1px solid var(--border-subtle);
+      user-select: none;
+    }
+    .safari-url-pill {
+      background: var(--safari-input);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+  <!-- macOS Safari Browser Chrome -->
+  <header id="safari-chrome" class="safari-toolbar h-10 px-3 flex items-center justify-between gap-2 shrink-0">
+    <div class="flex items-center gap-3">
+      <!-- Traffic Lights -->
+      <div class="hidden sm:flex items-center gap-1.5 mr-1">
+        <span class="w-3 h-3 rounded-full bg-[#FF5F56] border border-[#E0443E] inline-block"></span>
+        <span class="w-3 h-3 rounded-full bg-[#FFBD2E] border border-[#DEA123] inline-block"></span>
+        <span class="w-3 h-3 rounded-full bg-[#27C93F] border border-[#1AAB29] inline-block"></span>
+      </div>
+      <!-- Sidebar Toggle & Nav -->
+      <div class="flex items-center gap-1 text-[var(--text-secondary)]">
+        <button id="btn-toggle-sidebar" title="Toggle Sidebar" class="p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition">
+          <i data-lucide="panel-left" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-nav-back" title="Back" class="hidden md:inline-flex p-1 rounded-md hover:bg-black/5 opacity-60 hover:opacity-100 transition">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-nav-fwd" title="Forward" class="hidden md:inline-flex p-1 rounded-md hover:bg-black/5 opacity-40 transition">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Unified Safari Address / Search Bar -->
+    <div class="flex-1 max-w-xl mx-auto">
+      <div class="safari-url-pill h-7 rounded-lg px-3 flex items-center justify-between text-xs text-[var(--text-secondary)] shadow-inner">
+        <div class="flex items-center gap-1.5 truncate">
+          <i data-lucide="lock" class="w-3 h-3 text-emerald-600 shrink-0"></i>
+          <span id="safari-url-text" class="truncate font-medium text-[var(--text-primary)]">app.ticktick.com/webapp/#q/all/today</span>
+        </div>
+        <button id="btn-safari-reload" title="Sync / Refresh" class="p-0.5 rounded hover:bg-black/10 transition shrink-0">
+          <i data-lucide="rotate-cw" class="w-3 h-3"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Safari Right Controls -->
+    <div class="flex items-center gap-1 text-[var(--text-secondary)]">
+      <button id="btn-quick-search-top" title="Search Tasks (⌘K)" class="p-1.5 rounded-md hover:bg-black/5 transition">
+        <i data-lucide="search" class="w-4 h-4"></i>
+      </button>
+      <button id="btn-theme-toggle" title="Toggle Dark Mode" class="p-1.5 rounded-md hover:bg-black/5 transition">
+        <i data-lucide="moon" class="w-4 h-4"></i>
+      </button>
+      <button id="btn-hide-safari" title="Hide Safari Bar" class="hidden sm:inline-flex p-1.5 rounded-md hover:bg-black/5 transition">
+        <i data-lucide="maximize-2" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Floating Restore Safari Bar Button (shown when chrome is hidden) -->
+  <button id="btn-show-safari" class="hidden fixed top-2 right-2 z-50 px-2.5 py-1 rounded-md text-xs font-medium bg-[var(--bg-card)] border border-[var(--border-subtle)] shadow-md text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+    Show Safari Bar
+  </button>
+
+  <!-- Main TickTick Web App Shell -->
+  <div class="flex-1 flex min-h-0 overflow-hidden relative">
+
+    <!-- 1. Far-Left Primary Navigation Rail -->
+    <aside class="w-13 sm:w-14 flex flex-col items-center justify-between py-3 shrink-0 select-none z-20" style="background-color: var(--bg-rail);">
+      <div class="flex flex-col items-center gap-3 w-full">
+        <!-- Profile Avatar -->
+        <button id="btn-profile" title="Account & Settings" class="w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 text-white font-semibold text-xs flex items-center justify-center transition ring-2 ring-white/25">
+          TT
+        </button>
+
+        <div class="w-6 h-px bg-white/15 my-0.5"></div>
+
+        <!-- Primary Views -->
+        <button data-nav="tasks" class="rail-btn w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition" title="Tasks">
+          <i data-lucide="check-square" class="w-5 h-5"></i>
+        </button>
+        <button data-nav="calendar" class="rail-btn w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition" title="Calendar">
+          <i data-lucide="calendar" class="w-5 h-5"></i>
+        </button>
+        <button data-nav="matrix" class="rail-btn w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition" title="Eisenhower Matrix">
+          <i data-lucide="layout-grid" class="w-5 h-5"></i>
+        </button>
+        <button data-nav="pomodoro" class="rail-btn w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition" title="Pomodoro Focus">
+          <i data-lucide="timer" class="w-5 h-5"></i>
+        </button>
+        <button data-nav="habits" class="rail-btn w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition" title="Habit Tracker">
+          <i data-lucide="sparkles" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex flex-col items-center gap-2.5">
+        <button id="btn-rail-search" title="Quick Search (/)" class="w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition">
+          <i data-lucide="search" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-rail-settings" title="Settings & Demo Reset" class="w-9 h-9 rounded-xl flex items-center justify-center text-white/75 hover:text-white hover:bg-white/15 transition">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- 2. Lists & Smart Lists Sidebar (shown in Tasks view) -->
+    <aside id="lists-sidebar" class="w-60 shrink-0 border-r flex flex-col min-h-0 select-none transition-all duration-200 z-10" style="background-color: var(--bg-sidebar); border-color: var(--border-subtle);">
+      <div class="flex-1 overflow-y-auto custom-scroll p-2.5 space-y-4">
+        <!-- Smart Lists -->
+        <div class="space-y-0.5" id="smart-lists-container"></div>
+
+        <div class="h-px mx-2" style="background-color: var(--border-subtle);"></div>
+
+        <!-- Custom Lists -->
+        <div>
+          <div class="px-2.5 py-1 flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+            <span>Lists</span>
+            <button id="btn-add-list" title="Add New List" class="p-0.5 rounded hover:bg-black/5 text-[var(--text-secondary)] hover:text-[var(--tt-blue)] transition">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+          <div class="space-y-0.5 mt-1" id="custom-lists-container"></div>
+        </div>
+
+        <div class="h-px mx-2" style="background-color: var(--border-subtle);"></div>
+
+        <!-- Tags -->
+        <div>
+          <div class="px-2.5 py-1 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">Tags</div>
+          <div class="flex flex-wrap gap-1.5 px-2 mt-1.5" id="tags-container"></div>
+        </div>
+
+        <div class="h-px mx-2" style="background-color: var(--border-subtle);"></div>
+
+        <!-- Archive / Trash -->
+        <div class="space-y-0.5" id="bottom-lists-container"></div>
+      </div>
+
+      <!-- Focus Mini Status -->
+      <div id="sidebar-pomo-pill" class="hidden m-2.5 p-2.5 rounded-xl border text-xs flex items-center justify-between cursor-pointer" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+        <div class="flex items-center gap-2 truncate">
+          <span class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+          <span class="font-medium truncate" id="sidebar-pomo-time">25:00</span>
+        </div>
+        <span class="text-[var(--tt-blue)] font-medium">Focus</span>
+      </div>
+    </aside>
+
+    <!-- 3. Main Content Workspace -->
+    <main id="main-workspace" class="flex-1 flex min-w-0 min-h-0 overflow-hidden" style="background-color: var(--bg-app);">
+      <!-- Dynamically populated by active module (Tasks, Calendar, Matrix, Pomodoro, Habits) -->
+    </main>
+
+    <!-- 4. Right Task Detail Pane (shown in Tasks view when a task is selected) -->
+    <aside id="detail-pane" class="hidden w-80 lg:w-96 shrink-0 border-l flex-col min-h-0" style="background-color: var(--bg-app); border-color: var(--border-subtle);">
+      <!-- Populated dynamically -->
+    </aside>
+  </div>
+
+  <!-- Modal Overlay (Add List / Search / Settings / New Habit) -->
+  <div id="modal-overlay" class="hidden fixed inset-0 z-50 bg-black/40 backdrop-blur-[1px] flex items-center justify-center p-4">
+    <div id="modal-content" class="w-full max-w-md rounded-2xl border shadow-2xl overflow-hidden" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // ==========================================
+      // Constants & Date Helpers (Local Time: 2026-11-25)
+      // ==========================================
+      const STORAGE_KEY = 'ticktick_safari_replica_v1';
+      const TODAY_STR = '2026-11-25';
+
+      function parseDateStr(str) {
+        if (!str) return null;
+        const [y, m, d] = str.split('-').map(Number);
+        return new Date(y, m - 1, d);
+      }
+
+      function formatDateStr(dateObj) {
+        const y = dateObj.getFullYear();
+        const m = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const d = String(dateObj.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      }
+
+      function addDays(dateStr, days) {
+        const d = parseDateStr(dateStr);
+        d.setDate(d.getDate() + days);
+        return formatDateStr(d);
+      }
+
+      function getFriendlyDateLabel(dateStr) {
+        if (!dateStr) return '';
+        if (dateStr === TODAY_STR) return 'Today';
+        if (dateStr === addDays(TODAY_STR, 1)) return 'Tomorrow';
+        if (dateStr === addDays(TODAY_STR, -1)) return 'Yesterday';
+        const d = parseDateStr(dateStr);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+
+      function isOverdue(dateStr) {
+        return Boolean(dateStr && dateStr < TODAY_STR);
+      }
+
+      function isWithinNext7Days(dateStr) {
+        if (!dateStr) return false;
+        const maxStr = addDays(TODAY_STR, 6);
+        return dateStr >= TODAY_STR && dateStr <= maxStr;
+      }
+
+      // ==========================================
+      // Subtle Web Audio API Sound Effects
+      // ==========================================
+      let audioCtx = null;
+      function playTone(type) {
+        try {
+          if (!audioCtx) {
+            const Ctx = window.AudioContext || window.webkitAudioContext;
+            if (!Ctx) return;
+            audioCtx = new Ctx();
+          }
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          const now = audioCtx.currentTime;
+          if (type === 'check') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(520, now);
+            osc.frequency.exponentialRampToValueAtTime(880, now + 0.08);
+            gain.gain.setValueAtTime(0.08, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+            osc.start(now);
+            osc.stop(now + 0.12);
+          } else if (type === 'pomo') {
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(660, now);
+            osc.frequency.setValueAtTime(880, now + 0.15);
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+            osc.start(now);
+            osc.stop(now + 0.5);
+          }
+        } catch (_) {}
+      }
+
+      // ==========================================
+      // Initial Seed Data
+      // ==========================================
+      function createDefaultState() {
+        return {
+          theme: 'light',
+          activeModule: 'tasks', // 'tasks' | 'calendar' | 'matrix' | 'pomodoro' | 'habits'
+          activeListId: 'today', // 'today' | 'next7' | 'inbox' | 'all' | 'completed' | 'trash' | 'tag:...' | custom list id
+          viewMode: 'list', // 'list' | 'kanban'
+          sortBy: 'priority', // 'priority' | 'dueDate' | 'title'
+          showCompleted: true,
+          sidebarOpen: window.innerWidth >= 768,
+          selectedTaskId: 't1',
+          calendarMonth: '2026-11',
+          selectedCalendarDay: TODAY_STR,
+          lists: [
+            { id: 'work', name: 'Work & Projects', color: '#4772FA', icon: 'briefcase' },
+            { id: 'personal', name: 'Personal', color: '#10B981', icon: 'home' },
+            { id: 'shopping', name: 'Shopping & Errands', color: '#F59E0B', icon: 'shopping-bag' },
+            { id: 'reading', name: 'Reading List', color: '#8B5CF6', icon: 'book-open' }
+          ],
+          tasks: [
+            {
+              id: 't1',
+              title: 'Finalize Q4 product roadmap & Safari web specs',
+              notes: 'Review design tokens, keyboard shortcuts (Cmd+K, N), and offline sync edge cases before engineering handoff.',
+              listId: 'work',
+              dueDate: TODAY_STR,
+              priority: 3, // 0 none, 1 low, 2 medium, 3 high
+              tags: ['deep-work', 'roadmap'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 25,
+              subtasks: [
+                { id: 's1', title: 'Audit 3-pane responsive breakpoints', done: true },
+                { id: 's2', title: 'Verify natural-language date parsing', done: true },
+                { id: 's3', title: 'Share prototype link with team', done: false }
+              ],
+              createdAt: '2026-11-24T09:30:00'
+            },
+            {
+              id: 't2',
+              title: 'Prepare weekly design critique slides',
+              notes: 'Include before/after screenshots of the Eisenhower Matrix and Pomodoro ring.',
+              listId: 'work',
+              dueDate: TODAY_STR,
+              priority: 2,
+              tags: ['design'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 0,
+              subtasks: [],
+              createdAt: '2026-11-24T14:00:00'
+            },
+            {
+              id: 't3',
+              title: 'Renew cloud storage & domain subscription',
+              notes: 'Check annual billing receipt in email.',
+              listId: 'personal',
+              dueDate: addDays(TODAY_STR, -1),
+              priority: 3,
+              tags: ['finance'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 0,
+              subtasks: [],
+              createdAt: '2026-11-22T10:15:00'
+            },
+            {
+              id: 't4',
+              title: 'Pick up espresso beans & oat milk',
+              notes: 'Medium roast whole bean from local roaster.',
+              listId: 'shopping',
+              dueDate: TODAY_STR,
+              priority: 1,
+              tags: ['errand'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 0,
+              subtasks: [],
+              createdAt: '2026-11-25T08:00:00'
+            },
+            {
+              id: 't5',
+              title: 'Book dentist checkup for next month',
+              notes: '',
+              listId: 'personal',
+              dueDate: addDays(TODAY_STR, 2),
+              priority: 1,
+              tags: ['health'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 0,
+              subtasks: [],
+              createdAt: '2026-11-23T16:45:00'
+            },
+            {
+              id: 't6',
+              title: 'Read "The Design of Everyday Things" Ch. 4',
+              notes: 'Take notes on affordances and signifiers.',
+              listId: 'reading',
+              dueDate: addDays(TODAY_STR, 4),
+              priority: 0,
+              tags: ['reading'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 0,
+              subtasks: [],
+              createdAt: '2026-11-21T20:00:00'
+            },
+            {
+              id: 't7',
+              title: 'Send invoice to client for November sprint',
+              notes: 'PDF exported and verified.',
+              listId: 'work',
+              dueDate: TODAY_STR,
+              priority: 2,
+              tags: ['finance'],
+              completed: true,
+              trashed: false,
+              focusMinutes: 15,
+              subtasks: [],
+              createdAt: '2026-11-24T11:00:00'
+            },
+            {
+              id: 't8',
+              title: 'Draft weekend hiking gear checklist',
+              notes: 'Rain shell, headlamp, 2L water bladder.',
+              listId: 'inbox',
+              dueDate: addDays(TODAY_STR, 3),
+              priority: 0,
+              tags: ['outdoors'],
+              completed: false,
+              trashed: false,
+              focusMinutes: 0,
+              subtasks: [],
+              createdAt: '2026-11-25T09:10:00'
+            }
+          ],
+          habits: [
+            {
+              id: 'h1',
+              name: 'Morning Hydration (500ml)',
+              color: '#3B82F6',
+              icon: '💧',
+              days: [addDays(TODAY_STR, -4), addDays(TODAY_STR, -3), addDays(TODAY_STR, -2), addDays(TODAY_STR, -1), TODAY_STR]
+            },
+            {
+              id: 'h2',
+              name: '20m Focused Reading',
+              color: '#8B5CF6',
+              icon: '📖',
+              days: [addDays(TODAY_STR, -5), addDays(TODAY_STR, -3), addDays(TODAY_STR, -2), addDays(TODAY_STR, -1)]
+            },
+            {
+              id: 'h3',
+              name: 'Zero Inbox Before 6 PM',
+              color: '#10B981',
+              icon: '📥',
+              days: [addDays(TODAY_STR, -2), addDays(TODAY_STR, -1)]
+            },
+            {
+              id: 'h4',
+              name: 'Evening Walk (30 mins)',
+              color: '#F59E0B',
+              icon: '🚶',
+              days: [addDays(TODAY_STR, -6), addDays(TODAY_STR, -4), addDays(TODAY_STR, -1), TODAY_STR]
+            }
+          ],
+          pomodoro: {
+            mode: 'focus', // 'focus' (25m) | 'short' (5m) | 'long' (15m)
+            secondsLeft: 25 * 60,
+            running: false,
+            linkedTaskId: 't1',
+            sessionsToday: 2,
+            minutesToday: 50
+          }
+        };
+      }
+
+      function loadState() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            return { ...createDefaultState(), ...parsed, pomodoro: { ...createDefaultState().pomodoro, ...(parsed.pomodoro || {}), running: false } };
+          }
+        } catch (_) {}
+        return createDefaultState();
+      }
+
+      function saveState() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (_) {}
+      }
+
+      let state = loadState();
+      let pomoInterval = null;
+
+      // ==========================================
+      // Toast & Modal Helpers
+      // ==========================================
+      function showToast(msg) {
+        const container = document.getElementById('toast-container');
+        const el = document.createElement('div');
+        el.className = 'px-3.5 py-2 rounded-xl shadow-lg text-xs font-medium text-white bg-slate-900/90 dark:bg-slate-800 border border-white/10 pointer-events-auto transition-all duration-200';
+        el.textContent = msg;
+        container.appendChild(el);
+        setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(6px)';
+          setTimeout(() => el.remove(), 200);
+        }, 2200);
+      }
+
+      function openModal(html) {
+        const overlay = document.getElementById('modal-overlay');
+        const content = document.getElementById('modal-content');
+        content.innerHTML = html;
+        overlay.classList.remove('hidden');
+        lucide.createIcons();
+      }
+
+      function closeModal() {
+        document.getElementById('modal-overlay').classList.add('hidden');
+      }
+
+      document.getElementById('modal-overlay').addEventListener('click', (e) => {
+        if (e.target.id === 'modal-overlay') closeModal();
+      });
+
+      // ==========================================
+      // Task Queries & Natural Language Parser
+      // ==========================================
+      function getPriorityColor(p) {
+        if (p === 3) return '#E14D43';
+        if (p === 2) return '#F59E0B';
+        if (p === 1) return '#4772FA';
+        return '#9CA3AF';
+      }
+
+      function getPriorityLabel(p) {
+        if (p === 3) return 'High';
+        if (p === 2) return 'Medium';
+        if (p === 1) return 'Low';
+        return 'None';
+      }
+
+      function getListById(id) {
+        if (id === 'inbox') return { id: 'inbox', name: 'Inbox', color: '#4772FA' };
+        return state.lists.find(l => l.id === id) || { id: 'inbox', name: 'Inbox', color: '#4772FA' };
+      }
+
+      function parseQuickAddInput(rawText) {
+        let text = rawText.trim();
+        let dueDate = null;
+        let priority = 0;
+        const tags = [];
+
+        // Extract #tags
+        text = text.replace(/#([a-zA-Z0-9_-]+)/g, (_, tag) => {
+          tags.push(tag.toLowerCase());
+          return '';
+        });
+
+        // Extract !priority (!high, !med, !low, !3, !2, !1)
+        text = text.replace(/!(high|medium|med|low|3|2|1)\b/gi, (_, p) => {
+          const val = p.toLowerCase();
+          if (val === 'high' || val === '3') priority = 3;
+          else if (val === 'medium' || val === 'med' || val === '2') priority = 2;
+          else if (val === 'low' || val === '1') priority = 1;
+          return '';
+        });
+
+        // Extract simple date keywords
+        if (/\btoday\b/i.test(text)) {
+          dueDate = TODAY_STR;
+          text = text.replace(/\btoday\b/i, '');
+        } else if (/\btomorrow\b/i.test(text)) {
+          dueDate = addDays(TODAY_STR, 1);
+          text = text.replace(/\btomorrow\b/i, '');
+        } else if (/\bnext week\b/i.test(text)) {
+          dueDate = addDays(TODAY_STR, 7);
+          text = text.replace(/\bnext week\b/i, '');
+        }
+
+        return {
+          title: text.replace(/\s+/g, ' ').trim(),
+          dueDate,
+          priority,
+          tags
+        };
+      }
+
+      function getFilteredTasks(listId = state.activeListId) {
+        const active = state.tasks.filter(t => !t.trashed);
+        if (listId === 'trash') return state.tasks.filter(t => t.trashed);
+        if (listId === 'completed') return active.filter(t => t.completed);
+        if (listId === 'today') return active.filter(t => t.dueDate && t.dueDate <= TODAY_STR);
+        if (listId === 'next7') return active.filter(t => isWithinNext7Days(t.dueDate) || isOverdue(t.dueDate));
+        if (listId === 'all') return active;
+        if (listId === 'inbox') return active.filter(t => t.listId === 'inbox');
+        if (listId.startsWith('tag:')) {
+          const tag = listId.slice(4);
+          return active.filter(t => t.tags.includes(tag));
+        }
+        return active.filter(t => t.listId === listId);
+      }
+
+      function sortTasks(arr) {
+        return [...arr].sort((a, b) => {
+          if (state.sortBy === 'priority') {
+            if (b.priority !== a.priority) return b.priority - a.priority;
+            return (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1;
+          }
+          if (state.sortBy === 'dueDate') {
+            return (a.dueDate || '9999').localeCompare(b.dueDate || '9999');
+          }
+          return a.title.localeCompare(b.title);
+        });
+      }
+
+      // ==========================================
+      // Theme & Safari Chrome Sync
+      // ==========================================
+      function applyTheme() {
+        if (state.theme === 'dark') {
+          document.documentElement.classList.add('theme-dark');
+        } else {
+          document.documentElement.classList.remove('theme-dark');
+        }
+        const urlEl = document.getElementById('safari-url-text');
+        if (urlEl) {
+          const pathMap = {
+            tasks: `app.ticktick.com/webapp/#q/all/${state.activeListId}`,
+            calendar: 'app.ticktick.com/webapp/#c/all/calendar',
+            matrix: 'app.ticktick.com/webapp/#m/matrix',
+            pomodoro: 'app.ticktick.com/webapp/#p/focus',
+            habits: 'app.ticktick.com/webapp/#h/habits'
+          };
+          urlEl.textContent = pathMap[state.activeModule] || 'app.ticktick.com/webapp/';
+        }
+      }
+
+      // ==========================================
+      // Render Navigation Rail & Sidebar
+      // ==========================================
+      function renderRail() {
+        document.querySelectorAll('.rail-btn').forEach(btn => {
+          const isActive = btn.dataset.nav === state.activeModule;
+          btn.classList.toggle('bg-white/25', isActive);
+          btn.classList.toggle('text-white', isActive);
+          btn.classList.toggle('text-white/75', !isActive);
+        });
+      }
+
+      function renderSidebar() {
+        const sidebar = document.getElementById('lists-sidebar');
+        if (state.activeModule !== 'tasks' || !state.sidebarOpen) {
+          sidebar.classList.add('hidden');
+          return;
+        }
+        sidebar.classList.remove('hidden');
+
+        const activeTasks = state.tasks.filter(t => !t.trashed && !t.completed);
+        const smartItems = [
+          { id: 'today', label: 'Today', icon: 'sun', count: activeTasks.filter(t => t.dueDate && t.dueDate <= TODAY_STR).length, color: '#4772FA' },
+          { id: 'next7', label: 'Next 7 Days', icon: 'calendar-days', count: activeTasks.filter(t => isWithinNext7Days(t.dueDate) || isOverdue(t.dueDate)).length, color: '#10B981' },
+          { id: 'inbox', label: 'Inbox', icon: 'inbox', count: activeTasks.filter(t => t.listId === 'inbox').length, color: '#64748B' },
+          { id: 'all', label: 'All Tasks', icon: 'layers', count: activeTasks.length, color: '#8B5CF6' }
+        ];
+
+        const smartContainer = document.getElementById('smart-lists-container');
+        smartContainer.innerHTML = smartItems.map(item => {
+          const active = state.activeListId === item.id;
+          return `
+            <button data-list-id="${item.id}" class="sidebar-list-btn w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-sm transition ${active ? 'bg-[var(--tt-blue-soft)] text-[var(--tt-blue)] font-semibold' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}">
+              <span class="flex items-center gap-2.5 truncate">
+                <i data-lucide="${item.icon}" class="w-4 h-4 shrink-0" style="color: ${active ? 'var(--tt-blue)' : item.color};"></i>
+                <span class="truncate">${item.label}</span>
+              </span>
+              ${item.count > 0 ? `<span class="text-xs text-[var(--text-muted)] font-medium">${item.count}</span>` : ''}
+            </button>
+          `;
+        }).join('');
+
+        // Custom Lists
+        const customContainer = document.getElementById('custom-lists-container');
+        customContainer.innerHTML = state.lists.map(list => {
+          const active = state.activeListId === list.id;
+          const count = activeTasks.filter(t => t.listId === list.id).length;
+          return `
+            <button data-list-id="${list.id}" class="sidebar-list-btn w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-sm transition ${active ? 'bg-[var(--tt-blue-soft)] text-[var(--tt-blue)] font-semibold' : 'text-[var(--text-primary)] hover:bg-[var(--bg-hover)]'}">
+              <span class="flex items-center gap-2.5 truncate">
+                <span class="w-2.5 h-2.5 rounded-full shrink-0" style="background-color: ${list.color};"></span>
+                <span class="truncate">${escapeHtml(list.name)}</span>
+              </span>
+              ${count > 0 ? `<span class="text-xs text-[var(--text-muted)] font-medium">${count}</span>` : ''}
+            </button>
+          `;
+        }).join('');
+
+        // Tags
+        const allTags = Array.from(new Set(state.tasks.filter(t => !t.trashed).flatMap(t => t.tags))).sort();
+        const tagsContainer = document.getElementById('tags-container');
+        tagsContainer.innerHTML = allTags.length
+          ? allTags.map(tag => {
+              const active = state.activeListId === `tag:${tag}`;
+              return `
+                <button data-list-id="tag:${tag}" class="sidebar-list-btn px-2 py-0.5 rounded-md text-xs transition ${active ? 'bg-[var(--tt-blue)] text-white font-medium' : 'bg-black/5 dark:bg-white/10 text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}">
+                  #${escapeHtml(tag)}
+                </button>
+              `;
+            }).join('')
+          : `<span class="text-xs text-[var(--text-muted)] px-1">No tags yet</span>`;
+
+        // Completed & Trash
+        const bottomContainer = document.getElementById('bottom-lists-container');
+        const completedCount = state.tasks.filter(t => !t.trashed && t.completed).length;
+        const trashCount = state.tasks.filter(t => t.trashed).length;
+        bottomContainer.innerHTML = [
+          { id: 'completed', label: 'Completed', icon: 'check-circle-2', count: completedCount },
+          { id: 'trash', label: 'Trash', icon: 'trash-2', count: trashCount }
+        ].map(item => {
+          const active = state.activeListId === item.id;
+          return `
+            <button data-list-id="${item.id}" class="sidebar-list-btn w-full px-2.5 py-1.5 rounded-lg flex items-center justify-between text-sm transition ${active ? 'bg-[var(--tt-blue-soft)] text-[var(--tt-blue)] font-semibold' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-hover)]'}">
+              <span class="flex items-center gap-2.5 truncate">
+                <i data-lucide="${item.icon}" class="w-4 h-4 shrink-0"></i>
+                <span>${item.label}</span>
+              </span>
+              ${item.count > 0 ? `<span class="text-xs text-[var(--text-muted)]">${item.count}</span>` : ''}
+            </button>
+          `;
+        }).join('');
+
+        // Bind list clicks
+        sidebar.querySelectorAll('.sidebar-list-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            state.activeListId = btn.dataset.listId;
+            if (window.innerWidth < 768) state.sidebarOpen = false;
+            saveState();
+            renderAll();
+          });
+        });
+      }
+
+      // ==========================================
+      // Render Main Workspace (Router)
+      // ==========================================
+      function renderMainWorkspace() {
+        const main = document.getElementById('main-workspace');
+        const detail = document.getElementById('detail-pane');
+
+        if (state.activeModule === 'tasks') {
+          renderTasksView(main);
+          renderDetailPane(detail);
+        } else {
+          detail.classList.add('hidden');
+          detail.classList.remove('flex');
+          if (state.activeModule === 'calendar') renderCalendarView(main);
+          else if (state.activeModule === 'matrix') renderMatrixView(main);
+          else if (state.activeModule === 'pomodoro') renderPomodoroView(main);
+          else if (state.activeModule === 'habits') renderHabitsView(main);
+        }
+      }
+
+      // ==========================================
+      // 1. TASKS VIEW (List & Kanban)
+      // ==========================================
+      function getActiveListTitle() {
+        const map = { today: 'Today', next7: 'Next 7 Days', inbox: 'Inbox', all: 'All Tasks', completed: 'Completed', trash: 'Trash' };
+        if (map[state.activeListId]) return map[state.activeListId];
+        if (state.activeListId.startsWith('tag:')) return `#${state.activeListId.slice(4)}`;
+        return getListById(state.activeListId).name;
+      }
+
+      function renderTasksView(container) {
+        const allInList = getFilteredTasks();
+        const activeListTitle = getActiveListTitle();
+        const isTrash = state.activeListId === 'trash';
+        const isCompletedOnly = state.activeListId === 'completed';
+
+        const incompleteTasks = sortTasks(allInList.filter(t => !t.completed));
+        const completedTasks = sortTasks(allInList.filter(t => t.completed));
+
+        const overdueTasks = incompleteTasks.filter(t => isOverdue(t.dueDate));
+        const regularTasks = incompleteTasks.filter(t => !isOverdue(t.dueDate));
+
+        container.innerHTML = `
+          <div class="flex-1 flex flex-col min-w-0 min-h-0">
+            <!-- List Header -->
+            <div class="px-5 py-3.5 border-b flex items-center justify-between gap-3 shrink-0" style="border-color: var(--border-subtle);">
+              <div class="flex items-center gap-2.5 min-w-0">
+                <h1 class="text-lg font-bold truncate">${escapeHtml(activeListTitle)}</h1>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-black/5 dark:bg-white/10 text-[var(--text-secondary)] font-medium">${allInList.length}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                ${isTrash && allInList.length > 0 ? `
+                  <button id="btn-empty-trash" class="px-2.5 py-1 rounded-lg text-xs font-medium text-rose-600 hover:bg-rose-500/10 transition">Empty Trash</button>
+                ` : ''}
+                <div class="flex items-center rounded-lg p-0.5 bg-black/5 dark:bg-white/10 text-xs">
+                  <button id="btn-view-list" class="px-2.5 py-1 rounded-md font-medium transition ${state.viewMode === 'list' ? 'bg-[var(--bg-card)] shadow-sm text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}">List</button>
+                  <button id="btn-view-kanban" class="px-2.5 py-1 rounded-md font-medium transition ${state.viewMode === 'kanban' ? 'bg-[var(--bg-card)] shadow-sm text-[var(--text-primary)]' : 'text-[var(--text-secondary)]'}">Kanban</button>
+                </div>
+                <select id="select-sort" class="text-xs rounded-lg px-2 py-1.5 border bg-transparent text-[var(--text-secondary)] cursor-pointer outline-none" style="border-color: var(--border-subtle);">
+                  <option value="priority" ${state.sortBy === 'priority' ? 'selected' : ''}>Sort: Priority</option>
+                  <option value="dueDate" ${state.sortBy === 'dueDate' ? 'selected' : ''}>Sort: Due Date</option>
+                  <option value="title" ${state.sortBy === 'title' ? 'selected' : ''}>Sort: Title</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Quick Add Bar -->
+            ${!isTrash && !isCompletedOnly ? `
+              <div class="px-5 pt-3 pb-2 shrink-0">
+                <form id="quick-add-form" class="flex items-center gap-2 px-3 py-2 rounded-xl border focus-within:ring-2 focus-within:ring-[var(--tt-blue)]/30 focus-within:border-[var(--tt-blue)] transition" style="background-color: var(--bg-sidebar); border-color: var(--border-subtle);">
+                  <i data-lucide="plus" class="w-4 h-4 text-[var(--tt-blue)] shrink-0"></i>
+                  <input id="quick-add-input" type="text" placeholder="Add task to ${escapeHtml(activeListTitle)} (try: 'Review PR tomorrow !high #work')" class="flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--text-muted)]" />
+                  <select id="quick-add-priority" class="hidden sm:block text-xs bg-transparent text-[var(--text-secondary)] outline-none cursor-pointer">
+                    <option value="0">Priority</option>
+                    <option value="3">High (!high)</option>
+                    <option value="2">Medium (!med)</option>
+                    <option value="1">Low (!low)</option>
+                  </select>
+                  <button type="submit" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-[var(--tt-blue)] hover:bg-[var(--tt-blue-hover)] transition shrink-0">Add</button>
+                </form>
+              </div>
+            ` : ''}
+
+            <!-- Task List or Kanban Content -->
+            <div class="flex-1 overflow-y-auto custom-scroll px-4 pb-6 pt-1" id="tasks-scroll-area">
+              ${state.viewMode === 'kanban' ? renderKanbanHtml(incompleteTasks, completedTasks) : renderListHtml(overdueTasks, regularTasks, completedTasks, isTrash, isCompletedOnly)}
+            </div>
+          </div>
+        `;
+
+        // Bind Task View Controls
+        document.getElementById('btn-view-list')?.addEventListener('click', () => {
+          state.viewMode = 'list';
+          saveState();
+          renderAll();
+        });
+        document.getElementById('btn-view-kanban')?.addEventListener('click', () => {
+          state.viewMode = 'kanban';
+          saveState();
+          renderAll();
+        });
+        document.getElementById('select-sort')?.addEventListener('change', (e) => {
+          state.sortBy = e.target.value;
+          saveState();
+          renderAll();
+        });
+        document.getElementById('btn-empty-trash')?.addEventListener('click', () => {
+          state.tasks = state.tasks.filter(t => !t.trashed);
+          state.selectedTaskId = null;
+          saveState();
+          showToast('Trash emptied');
+          renderAll();
+        });
+
+        // Quick Add Submit
+        document.getElementById('quick-add-form')?.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const input = document.getElementById('quick-add-input');
+          const pSelect = document.getElementById('quick-add-priority');
+          const raw = input.value.trim();
+          if (!raw) return;
+
+          const parsed = parseQuickAddInput(raw);
+          if (!parsed.title) return;
+
+          const defaultListId = ['today', 'next7', 'all', 'completed', 'trash'].includes(state.activeListId) || state.activeListId.startsWith('tag:')
+            ? 'inbox'
+            : state.activeListId;
+
+          const defaultDue = state.activeListId === 'today' || state.activeListId === 'next7'
+            ? (parsed.dueDate || TODAY_STR)
+            : parsed.dueDate;
+
+          const newTask = {
+            id: 't_' + Date.now(),
+            title: parsed.title,
+            notes: '',
+            listId: defaultListId,
+            dueDate: defaultDue,
+            priority: parsed.priority || Number(pSelect?.value || 0),
+            tags: state.activeListId.startsWith('tag:')
+              ? Array.from(new Set([...parsed.tags, state.activeListId.slice(4)]))
+              : parsed.tags,
+            completed: false,
+            trashed: false,
+            focusMinutes: 0,
+            subtasks: [],
+            createdAt: new Date().toISOString()
+          };
+
+          state.tasks.unshift(newTask);
+          state.selectedTaskId = newTask.id;
+          input.value = '';
+          saveState();
+          showToast('Task added');
+          renderAll();
+        });
+
+        // Postpone Overdue
+        document.getElementById('btn-postpone-overdue')?.addEventListener('click', () => {
+          overdueTasks.forEach(t => { t.dueDate = TODAY_STR; });
+          saveState();
+          showToast(`Moved ${overdueTasks.length} overdue task(s) to Today`);
+          renderAll();
+        });
+
+        // Toggle Completed Accordion
+        document.getElementById('btn-toggle-completed')?.addEventListener('click', () => {
+          state.showCompleted = !state.showCompleted;
+          saveState();
+          renderAll();
+        });
+
+        // Bind Task Row interactions
+        container.querySelectorAll('.task-checkbox-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.taskId;
+            const task = state.tasks.find(t => t.id === id);
+            if (!task) return;
+            task.completed = !task.completed;
+            if (task.completed) playTone('check');
+            saveState();
+            renderAll();
+          });
+        });
+
+        container.querySelectorAll('.task-row').forEach(row => {
+          row.addEventListener('click', () => {
+            state.selectedTaskId = row.dataset.taskId;
+            saveState();
+            renderAll();
+          });
+        });
+
+        container.querySelectorAll('.btn-task-focus').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            state.pomodoro.linkedTaskId = btn.dataset.taskId;
+            state.activeModule = 'pomodoro';
+            saveState();
+            renderAll();
+          });
+        });
+
+        container.querySelectorAll('.btn-task-restore').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const t = state.tasks.find(x => x.id === btn.dataset.taskId);
+            if (t) t.trashed = false;
+            saveState();
+            showToast('Task restored');
+            renderAll();
+          });
+        });
+      }
+
+      function renderTaskRow(t, isTrash = false) {
+        const selected = state.selectedTaskId === t.id;
+        const pColor = getPriorityColor(t.priority);
+        const listObj = getListById(t.listId);
+        const doneSub = t.subtasks.filter(s => s.done).length;
+        const overdue = !t.completed && isOverdue(t.dueDate);
+        const dateLabel = getFriendlyDateLabel(t.dueDate);
+
+        return `
+          <div data-task-id="${t.id}" class="task-row group px-3 py-2.5 rounded-xl flex items-start gap-3 cursor-pointer border border-transparent ${selected ? 'selected border-[var(--tt-blue)]/25' : ''}">
+            <button data-task-id="${t.id}" class="task-checkbox-btn tt-checkbox mt-0.5 ${t.completed ? 'checked animate-check' : ''}" style="--cb-color: ${pColor};">
+              ${t.completed ? `<i data-lucide="check" class="w-3 h-3 text-white stroke-[3]"></i>` : ''}
+            </button>
+
+            <div class="flex-1 min-w-0">
+              <div class="text-sm leading-snug ${t.completed ? 'line-through text-[var(--text-muted)]' : 'text-[var(--text-primary)] font-medium'}">${escapeHtml(t.title)}</div>
+              <div class="flex flex-wrap items-center gap-2 mt-1 text-[11px]">
+                ${dateLabel ? `
+                  <span class="inline-flex items-center gap-1 font-medium ${overdue ? 'text-[#E14D43]' : (t.dueDate === TODAY_STR ? 'text-[var(--tt-blue)]' : 'text-[var(--text-muted)]')}">
+                    <i data-lucide="calendar" class="w-3 h-3"></i>
+                    ${dateLabel}
+                  </span>
+                ` : ''}
+                ${t.subtasks.length > 0 ? `
+                  <span class="inline-flex items-center gap-1 text-[var(--text-muted)]">
+                    <i data-lucide="list-checks" class="w-3 h-3"></i>
+                    ${doneSub}/${t.subtasks.length}
+                  </span>
+                ` : ''}
+                ${t.tags.map(tag => `<span class="px-1.5 py-0.2 rounded bg-black/5 dark:bg-white/10 text-[var(--text-secondary)]">#${escapeHtml(tag)}</span>`).join('')}
+                <span class="inline-flex items-center gap-1 text-[var(--text-muted)]">
+                  <span class="w-1.5 h-1.5 rounded-full" style="background-color: ${listObj.color};"></span>
+                  ${escapeHtml(listObj.name)}
+                </span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
+              ${isTrash ? `
+                <button data-task-id="${t.id}" title="Restore Task" class="btn-task-restore p-1 rounded-md hover:bg-black/10 text-[var(--tt-blue)]">
+                  <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i>
+                </button>
+              ` : `
+                <button data-task-id="${t.id}" title="Start Focus Timer" class="btn-task-focus p-1 rounded-md hover:bg-black/10 text-[var(--text-secondary)] hover:text-[var(--tt-blue)]">
+                  <i data-lucide="timer" class="w-3.5 h-3.5"></i>
+                </button>
+              `}
+            </div>
+          </div>
+        `;
+      }
+
+      function renderListHtml(overdueTasks, regularTasks, completedTasks, isTrash, isCompletedOnly) {
+        if (overdueTasks.length === 0 && regularTasks.length === 0 && completedTasks.length === 0) {
+          return `
+            <div class="h-64 flex flex-col items-center justify-center text-center text-[var(--text-muted)]">
+              <i data-lucide="check-circle" class="w-10 h-10 mb-2 opacity-40"></i>
+              <p class="text-sm font-medium">No tasks here</p>
+              <p class="text-xs mt-0.5 opacity-80">Add a task above or switch lists from the sidebar.</p>
+            </div>
+          `;
+        }
+
+        let html = '';
+        if (!isTrash && !isCompletedOnly) {
+          if (overdueTasks.length > 0) {
+            html += `
+              <div class="mb-4">
+                <div class="px-2 py-1.5 flex items-center justify-between text-xs font-semibold text-[#E14D43]">
+                  <span>Overdue (${overdueTasks.length})</span>
+                  <button id="btn-postpone-overdue" class="hover:underline font-medium">Postpone to Today</button>
+                </div>
+                <div class="space-y-0.5">${overdueTasks.map(t => renderTaskRow(t)).join('')}</div>
+              </div>
+            `;
+          }
+          if (regularTasks.length > 0) {
+            html += `<div class="space-y-0.5 mb-4">${regularTasks.map(t => renderTaskRow(t)).join('')}</div>`;
+          }
+          if (completedTasks.length > 0) {
+            html += `
+              <div class="mt-4">
+                <button id="btn-toggle-completed" class="px-2 py-1.5 flex items-center gap-1.5 text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+                  <i data-lucide="${state.showCompleted ? 'chevron-down' : 'chevron-right'}" class="w-3.5 h-3.5"></i>
+                  <span>Completed (${completedTasks.length})</span>
+                </button>
+                ${state.showCompleted ? `<div class="space-y-0.5 mt-1">${completedTasks.map(t => renderTaskRow(t)).join('')}</div>` : ''}
+              </div>
+            `;
+          }
+        } else {
+          const list = isCompletedOnly ? completedTasks : [...overdueTasks, ...regularTasks, ...completedTasks];
+          html += `<div class="space-y-0.5">${list.map(t => renderTaskRow(t, isTrash)).join('')}</div>`;
+        }
+        return html;
+      }
+
+      function renderKanbanHtml(incompleteTasks, completedTasks) {
+        const cols = [
+          { title: 'High Priority', color: '#E14D43', items: incompleteTasks.filter(t => t.priority === 3) },
+          { title: 'Medium Priority', color: '#F59E0B', items: incompleteTasks.filter(t => t.priority === 2) },
+          { title: 'Low / Normal', color: '#4772FA', items: incompleteTasks.filter(t => t.priority <= 1) },
+          { title: 'Completed', color: '#10B981', items: completedTasks }
+        ];
+        return `
+          <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 pt-2">
+            ${cols.map(col => `
+              <div class="rounded-xl p-2.5 border flex flex-col gap-2 min-h-[220px]" style="background-color: var(--bg-sidebar); border-color: var(--border-subtle);">
+                <div class="flex items-center justify-between px-1">
+                  <span class="text-xs font-semibold flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full" style="background-color: ${col.color};"></span>
+                    ${col.title}
+                  </span>
+                  <span class="text-xs text-[var(--text-muted)]">${col.items.length}</span>
+                </div>
+                <div class="space-y-1.5">
+                  ${col.items.map(t => `
+                    <div class="rounded-lg border shadow-xs" style="background-color: var(--bg-card); border-color: var(--border-subtle);">
+                      ${renderTaskRow(t)}
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `;
+      }
+
+      // ==========================================
+      // 2. RIGHT TASK DETAIL PANE
+      // ==========================================
+      function renderDetailPane(container) {
+        const task = state.tasks.find(t => t.id === state.selectedTaskId && !t.trashed);
+        if (!task) {
+          container.classList.add('hidden');
+          container.classList.remove('flex');
+          return;
+        }
+        container.classList.remove('hidden');
+        container.classList.add('flex');
+
+        const pColor = getPriorityColor(task.priority);
+
+        container.innerHTML = `
+          <!-- Detail Top Bar -->
+          <div class="px-4 py-3 border-b flex items-center justify-between gap-2 shrink-0" style="border-color: var(--border-subtle);">
+            <div class="flex items-center gap-2.5">
+              <button id="detail-toggle-done" class="tt-checkbox ${task.completed ? 'checked' : ''}" style="--cb-color: ${pColor};">
+                ${task.completed ? `<i data-lucide="check" class="w-3 h-3 text-white stroke-[3]"></i>` : ''}
+              </button>
+              <input id="detail-due-input" type="date" value="${task.dueDate || ''}" class="text-xs px-2 py-1 rounded-md border bg-transparent text-[var(--text-secondary)] outline-none cursor-pointer" style="border-color: var(--border-subtle);" />
+            </div>
+            <div class="flex items-center gap-1">
+              <select id="detail-priority-select" class="text-xs px-2 py-1 rounded-md border bg-transparent outline-none cursor-pointer font-medium" style="border-color: var(--border-subtle); color: ${pColor};">
+                <option value="0" ${task.priority === 0 ? 'selected' : ''}>No Priority</option>
+                <option value="1" ${task.priority === 1 ? 'selected' : ''}>Low</option>
+                <option value="2" ${task.priority === 2 ? 'selected' : ''}>Medium</option>
+                <option value="3" ${task.priority === 3 ? 'selected' : ''}>High</option>
+              </select>
+              <button id="detail-delete-btn" title="Move to Trash" class="p-1.5 rounded-md hover:bg-rose-500/10 text-[var(--text-muted)] hover:text-rose-600 transition">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+              <button id="detail-close-btn" title="Close Detail" class="p-1.5 rounded-md hover:bg-black/5 text-[var(--text-muted)] transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Detail Body -->
+          <div class="flex-1 overflow-y-auto custom-scroll p-4 space-y-4">
+            <div>
+              <input id="detail-title-input" type="text" value="${escapeAttr(task.title)}" class="w-full text-base font-semibold bg-transparent outline-none border-b border-transparent focus:border-[var(--tt-blue)] pb-1" />
+            </div>
+
+            <div>
+              <textarea id="detail-notes-input" rows="4" placeholder="Add notes, links, or details..." class="w-full text-sm bg-transparent outline-none resize-none text-[var(--text-secondary)] placeholder:text-[var(--text-muted)] leading-relaxed">${escapeHtml(task.notes || '')}</textarea>
+            </div>
+
+            <!-- Subtasks -->
+            <div class="pt-2 border-t" style="border-color: var(--border-subtle);">
+              <div class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Subtasks</div>
+              <div class="space-y-1.5 mb-2">
+                ${task.subtasks.map(sub => `
+                  <div class="flex items-center gap-2 group text-sm">
+                    <button data-sub-id="${sub.id}" class="subtask-toggle-btn tt-checkbox !w-4 !h-4 ${sub.done ? 'checked' : ''}" style="--cb-color: #4772FA;">
+                      ${sub.done ? `<i data-lucide="check" class="w-2.5 h-2.5 text-white stroke-[3]"></i>` : ''}
+                    </button>
+                    <span class="flex-1 truncate ${sub.done ? 'line-through text-[var(--text-muted)]' : ''}">${escapeHtml(sub.title)}</span>
+                    <button data-sub-id="${sub.id}" class="subtask-del-btn opacity-0 group-hover:opacity-100 text-[var(--text-muted)] hover:text-rose-500">
+                      <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+              <form id="subtask-add-form" class="flex items-center gap-2">
+                <i data-lucide="plus" class="w-3.5 h-3.5 text-[var(--text-muted)]"></i>
+                <input id="subtask-add-input" type="text" placeholder="Add subtask..." class="flex-1 text-xs bg-transparent outline-none py-1 placeholder:text-[var(--text-muted)]" />
+              </form>
+            </div>
+
+            <!-- Tags -->
+            <div class="pt-2 border-t" style="border-color: var(--border-subtle);">
+              <div class="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">Tags</div>
+              <div class="flex flex-wrap gap-1.5 items-center">
+                ${task.tags.map(tag => `
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs bg-[var(--tt-blue-soft)] text-[var(--tt-blue)] font-medium">
+                    #${escapeHtml(tag)}
+                    <button data-tag="${escapeAttr(tag)}" class="tag-remove-btn hover:text-rose-500">×</button>
+                  </span>
+                `).join('')}
+                <form id="tag-add-form" class="inline-flex">
+                  <input id="tag-add-input" type="text" placeholder="+ tag" class="w-20 text-xs bg-transparent outline-none px-1 py-0.5 placeholder:text-[var(--text-muted)]" />
+                </form>
+              </div>
+            </div>
+
+            <!-- Focus Link -->
+            <div class="pt-2 border-t flex items-center justify-between" style="border-color: var(--border-subtle);">
+              <span class="text-xs text-[var(--text-secondary)]">Focus logged: <strong>${task.focusMinutes || 0}m</strong></span>
+              <button id="detail-start-pomo" class="px-2.5 py-1 rounded-lg text-xs font-medium bg-[var(--tt-blue-soft)] text-[var(--tt-blue)] hover:bg-[var(--tt-blue)] hover:text-white transition">
+                Start Pomodoro
+              </button>
+            </div>
+          </div>
+
+          <!-- Detail Footer -->
+          <div class="px-4 py-2.5 border-t flex items-center justify-between text-xs text-[var(--text-muted)] shrink-0" style="border-color: var(--border-subtle);">
+            <select id="detail-list-select" class="bg-transparent outline-none cursor-pointer font-medium text-[var(--text-secondary)]">
+              <option value="inbox" ${task.listId === 'inbox' ? 'selected' : ''}>Inbox</option>
+              ${state.lists.map(l => `<option value="${l.id}" ${task.listId === l.id ? 'selected' : ''}>${escapeHtml(l.name)}</option>`).join('')}
+            </select>
+            <span>Created ${new Date(task.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+          </div>
+        `;
+
+        // Bind Detail Events
+        document.getElementById('detail-close-btn').addEventListener('click', () => {
+          state.selectedTaskId = null;
+          saveState();
+          renderAll();
+        });
+        document.getElementById('detail-toggle-done').addEventListener('click', () => {
+          task.completed = !task.completed;
+          if (task.completed) playTone('check');
+          saveState();
+          renderAll();
+        });
+        document.getElementById('detail-due-input').addEventListener('change', (e) => {
+          task.dueDate = e.target.value || null;
+          saveState();
+          renderAll();
+        });
+        document.getElementById('detail-priority-select').addEventListener('change', (e) => {
+          task.priority = Number(e.target.value);
+          saveState();
+          renderAll();
+        });
+        document.getElementById('detail-list-select').addEventListener('change', (e) => {
+          task.listId = e.target.value;
+          saveState();
+          renderAll();
+        });
+        document.getElementById('detail-delete-btn').addEventListener('click', () => {
+          task.trashed = true;
+          state.selectedTaskId = null;
+          saveState();
+          showToast('Moved to Trash');
+          renderAll();
+        });
+        document.getElementById('detail-title-input').addEventListener('change', (e) => {
+          const val = e.target.value.trim();
+          if (val) {
+            task.title = val;
+            saveState();
+            renderSidebar();
+            renderTasksView(document.getElementById('main-workspace'));
+            lucide.createIcons();
+          }
+        });
+        document.getElementById('detail-notes-input').addEventListener('input', (e) => {
+          task.notes = e.target.value;
+          saveState();
+        });
+        document.getElementById('subtask-add-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const inp = document.getElementById('subtask-add-input');
+          const val = inp.value.trim();
+          if (!val) return;
+          task.subtasks.push({ id: 's_' + Date.now(), title: val, done: false });
+          saveState();
+          renderAll();
+        });
+        container.querySelectorAll('.subtask-toggle-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const sub = task.subtasks.find(s => s.id === btn.dataset.subId);
+            if (sub) {
+              sub.done = !sub.done;
+              if (sub.done) playTone('check');
+              saveState();
+              renderAll();
+            }
+          });
+        });
+        container.querySelectorAll('.subtask-del-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            task.subtasks = task.subtasks.filter(s => s.id !== btn.dataset.subId);
+            saveState();
+            renderAll();
+          });
+        });
+        document.getElementById('tag-add-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const inp = document.getElementById('tag-add-input');
+          const val = inp.value.trim().replace(/^#/, '').toLowerCase();
+          if (val && !task.tags.includes(val)) {
+            task.tags.push(val);
+            saveState();
+            renderAll();
+          }
+        });
+        container.querySelectorAll('.tag-remove-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            task.tags = task.tags.filter(tg => tg !== btn.dataset.tag);
+            saveState();
+            renderAll();
+          });
+        });
+        document.getElementById('detail-start-pomo').addEventListener('click', () => {
+          state.pomodoro.linkedTaskId = task.id;
+          state.activeModule = 'pomodoro';
+          saveState();
+          renderAll();
+        });
+      }
+
+      // ==========================================
+      // 3. CALENDAR VIEW
+      // ==========================================
+      function renderCalendarView(container) {
+        const [y, m] = state.calendarMonth.split('-').map(Number);
+        const firstDay = new Date(y, m - 1, 1);
+        const lastDay = new Date(y, m, 0);
+        const startOffset = firstDay.getDay();
+        const totalDays = lastDay.getDate();
+        const monthName = firstDay.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+        const activeTasks = state.tasks.filter(t => !t.trashed);
+        const cells = [];
+        for (let i = 0; i < startOffset; i++) cells.push(null);
+        for (let d = 1; d <= totalDays; d++) {
+          cells.push(`${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`);
+        }
+
+        const selectedDayTasks = activeTasks.filter(t => t.dueDate === state.selectedCalendarDay);
+
+        container.innerHTML = `
+          <div class="flex-1 flex flex-col lg:flex-row min-w-0 min-h-0">
+            <div class="flex-1 flex flex-col min-w-0 p-4 overflow-y-auto custom-scroll">
+              <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                  <h1 class="text-lg font-bold">${monthName}</h1>
+                  <button id="cal-today-btn" class="px-2.5 py-1 rounded-lg text-xs font-medium border hover:bg-[var(--bg-hover)] transition" style="border-color: var(--border-subtle);">Today</button>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button id="cal-prev-btn" class="p-1.5 rounded-lg hover:bg-[var(--bg-hover)]"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                  <button id="cal-next-btn" class="p-1.5 rounded-lg hover:bg-[var(--bg-hover)]"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-[var(--text-muted)] pb-2">
+                <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+              </div>
+
+              <div class="grid grid-cols-7 gap-1 flex-1 auto-rows-fr">
+                ${cells.map(dateStr => {
+                  if (!dateStr) return `<div class="rounded-lg p-1.5 opacity-30"></div>`;
+                  const dayNum = Number(dateStr.split('-')[2]);
+                  const dayTasks = activeTasks.filter(t => t.dueDate === dateStr);
+                  const isToday = dateStr === TODAY_STR;
+                  const isSelected = dateStr === state.selectedCalendarDay;
+                  return `
+                    <div data-cal-day="${dateStr}" class="cal-day-cell rounded-xl p-1.5 border cursor-pointer flex flex-col gap-1 min-h-[76px] transition ${isSelected ? 'ring-2 ring-[var(--tt-blue)]' : 'hover:bg-[var(--bg-hover)]'}" style="border-color: var(--border-subtle);">
+                      <div class="flex items-center justify-between">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-semibold ${isToday ? 'bg-[var(--tt-blue)] text-white' : ''}">${dayNum}</span>
+                      </div>
+                      <div class="space-y-0.5 overflow-hidden">
+                        ${dayTasks.slice(0, 3).map(t => `
+                          <div class="text-[10px] px-1.5 py-0.5 rounded truncate font-medium ${t.completed ? 'line-through opacity-50' : ''}" style="background-color: ${getPriorityColor(t.priority)}20; color: ${getPriorityColor(t.priority)};">
+                            ${escapeHtml(t.title)}
+                          </div>
+                        `).join('')}
+                        ${dayTasks.length > 3 ? `<div class="text-[10px] text-[var(--text-muted)] px-1">+${dayTasks.length - 3} more</div>` : ''}
+                      </div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+
+            <!-- Selected Day Agenda Panel -->
+            <div class="w-full lg:w-80 border-t lg:border-t-0 lg:border-l p-4 flex flex-col shrink-0" style="border-color: var(--border-subtle); background-color: var(--bg-sidebar);">
+              <h2 class="text-sm font-bold mb-3">${getFriendlyDateLabel(state.selectedCalendarDay)} (${state.selectedCalendarDay})</h2>
+              <form id="cal-add-form" class="flex gap-1.5 mb-3">
+                <input id="cal-add-input" type="text" placeholder="Schedule task on this day..." class="flex-1 text-xs px-2.5 py-1.5 rounded-lg border bg-[var(--bg-app)] outline-none" style="border-color: var(--border-subtle);" />
+                <button type="submit" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--tt-blue)]">Add</button>
+              </form>
+              <div class="flex-1 overflow-y-auto custom-scroll space-y-1">
+                ${selectedDayTasks.length ? selectedDayTasks.map(t => renderTaskRow(t)).join('') : `<p class="text-xs text-[var(--text-muted)] mt-4 text-center">No tasks scheduled for this date.</p>`}
+              </div>
+            </div>
+          </div>
+        `;
+
+        document.getElementById('cal-today-btn').addEventListener('click', () => {
+          state.calendarMonth = '2026-11';
+          state.selectedCalendarDay = TODAY_STR;
+          saveState();
+          renderAll();
+        });
+        document.getElementById('cal-prev-btn').addEventListener('click', () => {
+          const d = new Date(y, m - 2, 1);
+          state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          saveState();
+          renderAll();
+        });
+        document.getElementById('cal-next-btn').addEventListener('click', () => {
+          const d = new Date(y, m, 1);
+          state.calendarMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          saveState();
+          renderAll();
+        });
+        container.querySelectorAll('.cal-day-cell').forEach(cell => {
+          cell.addEventListener('click', () => {
+            state.selectedCalendarDay = cell.dataset.calDay;
+            saveState();
+            renderAll();
+          });
+        });
+        document.getElementById('cal-add-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const inp = document.getElementById('cal-add-input');
+          const title = inp.value.trim();
+          if (!title) return;
+          state.tasks.unshift({
+            id: 't_' + Date.now(),
+            title,
+            notes: '',
+            listId: 'inbox',
+            dueDate: state.selectedCalendarDay,
+            priority: 1,
+            tags: [],
+            completed: false,
+            trashed: false,
+            focusMinutes: 0,
+            subtasks: [],
+            createdAt: new Date().toISOString()
+          });
+          saveState();
+          showToast('Task scheduled');
+          renderAll();
+        });
+        container.querySelectorAll('.task-checkbox-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const t = state.tasks.find(x => x.id === btn.dataset.taskId);
+            if (t) { t.completed = !t.completed; if (t.completed) playTone('check'); saveState(); renderAll(); }
+          });
+        });
+      }
+
+      // ==========================================
+      // 4. EISENHOWER MATRIX VIEW
+      // ==========================================
+      function renderMatrixView(container) {
+        const active = state.tasks.filter(t => !t.trashed && !t.completed);
+        const q1 = active.filter(t => t.priority === 3); // Urgent & Important
+        const q2 = active.filter(t => t.priority === 2); // Not Urgent & Important
+        const q3 = active.filter(t => t.priority === 1); // Urgent & Unimportant
+        const q4 = active.filter(t => t.priority === 0); // Not Urgent & Unimportant
+
+        const quads = [
+          { title: 'I. Urgent & Important', p: 3, color: '#E14D43', items: q1 },
+          { title: 'II. Not Urgent & Important', p: 2, color: '#F59E0B', items: q2 },
+          { title: 'III. Urgent & Unimportant', p: 1, color: '#4772FA', items: q3 },
+          { title: 'IV. Not Urgent & Unimportant', p: 0, color: '#6B7280', items: q4 }
+        ];
+
+        container.innerHTML = `
+          <div class="flex-1 flex flex-col p-4 overflow-y-auto custom-scroll">
+            <div class="flex items-center justify-between mb-4">
+              <h1 class="text-lg font-bold">Eisenhower Matrix</h1>
+              <span class="text-xs text-[var(--text-muted)]">Prioritize tasks by urgency & importance</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5 flex-1">
+              ${quads.map(q => `
+                <div class="rounded-2xl border p-3.5 flex flex-col min-h-[220px]" style="background-color: var(--bg-sidebar); border-color: var(--border-subtle);">
+                  <div class="flex items-center justify-between mb-2.5">
+                    <span class="text-xs font-bold uppercase tracking-wide flex items-center gap-2" style="color: ${q.color};">
+                      <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${q.color};"></span>
+                      ${q.title}
+                    </span>
+                    <span class="text-xs text-[var(--text-muted)]">${q.items.length}</span>
+                  </div>
+                  <div class="flex-1 space-y-1 overflow-y-auto custom-scroll">
+                    ${q.items.length ? q.items.map(t => renderTaskRow(t)).join('') : `<p class="text-xs text-[var(--text-muted)] py-6 text-center">No tasks in this quadrant</p>`}
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+
+        container.querySelectorAll('.task-checkbox-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const t = state.tasks.find(x => x.id === btn.dataset.taskId);
+            if (t) { t.completed = !t.completed; if (t.completed) playTone('check'); saveState(); renderAll(); }
+          });
+        });
+        container.querySelectorAll('.task-row').forEach(row => {
+          row.addEventListener('click', () => {
+            state.selectedTaskId = row.dataset.taskId;
+            state.activeModule = 'tasks';
+            saveState();
+            renderAll();
+          });
+        });
+      }
+
+      // ==========================================
+      // 5. POMODORO FOCUS VIEW
+      // ==========================================
+      function renderPomodoroView(container) {
+        const p = state.pomodoro;
+        const total = p.mode === 'focus' ? 25 * 60 : (p.mode === 'short' ? 5 * 60 : 15 * 60);
+        const pct = Math.max(0, Math.min(1, p.secondsLeft / total));
+        const radius = 104;
+        const circ = 2 * Math.PI * radius;
+        const offset = circ * (1 - pct);
+
+        const mins = String(Math.floor(p.secondsLeft / 60)).padStart(2, '0');
+        const secs = String(p.secondsLeft % 60).padStart(2, '0');
+
+        const activeTasks = state.tasks.filter(t => !t.trashed && !t.completed);
+
+        container.innerHTML = `
+          <div class="flex-1 flex flex-col items-center justify-center p-6 overflow-y-auto custom-scroll">
+            <div class="w-full max-w-md rounded-3xl border p-6 text-center shadow-sm" style="background-color: var(--bg-sidebar); border-color: var(--border-subtle);">
+              <!-- Mode Switcher -->
+              <div class="inline-flex rounded-xl p-1 bg-black/5 dark:bg-white/10 text-xs font-medium mb-6">
+                <button data-pomo-mode="focus" class="pomo-mode-btn px-3 py-1.5 rounded-lg transition ${p.mode === 'focus' ? 'bg-[var(--bg-card)] shadow-sm text-[var(--tt-blue)] font-semibold' : 'text-[var(--text-secondary)]'}">Focus 25m</button>
+                <button data-pomo-mode="short" class="pomo-mode-btn px-3 py-1.5 rounded-lg transition ${p.mode === 'short' ? 'bg-[var(--bg-card)] shadow-sm text-emerald-600 font-semibold' : 'text-[var(--text-secondary)]'}">Short Break 5m</button>
+                <button data-pomo-mode="long" class="pomo-mode-btn px-3 py-1.5 rounded-lg transition ${p.mode === 'long' ? 'bg-[var(--bg-card)] shadow-sm text-indigo-500 font-semibold' : 'text-[var(--text-secondary)]'}">Long Break 15m</button>
+              </div>
+
+              <!-- Circular SVG Timer -->
+              <div class="relative w-60 h-60 mx-auto flex items-center justify-center mb-6">
+                <svg class="w-full h-full -rotate-90" viewBox="0 0 240 240">
+                  <circle cx="120" cy="120" r="${radius}" fill="none" stroke="var(--border-subtle)" stroke-width="10" />
+                  <circle cx="120" cy="120" r="${radius}" fill="none" stroke="${p.mode === 'focus' ? '#4772FA' : '#10B981'}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${circ}" stroke-dashoffset="${offset}" style="transition: stroke-dashoffset 0.5s linear;" />
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span id="pomo-display-time" class="text-5xl font-bold tracking-tight tabular-nums">${mins}:${secs}</span>
+                  <span class="text-xs text-[var(--text-muted)] mt-1 uppercase tracking-wider">${p.running ? 'Focusing' : 'Paused'}</span>
+                </div>
+              </div>
+
+              <!-- Linked Task -->
+              <div class="mb-5">
+                <select id="pomo-task-select" class="w-full text-xs px-3 py-2 rounded-xl border bg-[var(--bg-app)] text-[var(--text-primary)] outline-none" style="border-color: var(--border-subtle);">
+                  <option value="">No linked task</option>
+                  ${activeTasks.map(t => `<option value="${t.id}" ${p.linkedTaskId === t.id ? 'selected' : ''}>${escapeHtml(t.title)}</option>`).join('')}
+                </select>
+              </div>
+
+              <!-- Controls -->
+              <div class="flex items-center justify-center gap-3 mb-5">
+                <button id="pomo-start-pause" class="px-7 py-2.5 rounded-full text-sm font-semibold text-white bg-[var(--tt-blue)] hover:bg-[var(--tt-blue-hover)] shadow-md transition">
+                  ${p.running ? 'Pause' : 'Start Focus'}
+                </button>
+                <button id="pomo-reset" class="px-4 py-2.5 rounded-full text-sm font-medium border hover:bg-[var(--bg-hover)] transition" style="border-color: var(--border-subtle);">
+                  Reset
+                </button>
+              </div>
+
+              <!-- Stats -->
+              <div class="pt-4 border-t flex items-center justify-around text-xs text-[var(--text-secondary)]" style="border-color: var(--border-subtle);">
+                <div>Today's Pomodoros: <strong class="text-[var(--text-primary)]">${p.sessionsToday}</strong></div>
+                <div>Focus Time: <strong class="text-[var(--text-primary)]">${p.minutesToday}m</strong></div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.querySelectorAll('.pomo-mode-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            stopPomoInterval();
+            p.mode = btn.dataset.pomoMode;
+            p.running = false;
+            p.secondsLeft = p.mode === 'focus' ? 25 * 60 : (p.mode === 'short' ? 5 * 60 : 15 * 60);
+            saveState();
+            renderAll();
+          });
+        });
+
+        document.getElementById('pomo-task-select').addEventListener('change', (e) => {
+          p.linkedTaskId = e.target.value || null;
+          saveState();
+        });
+
+        document.getElementById('pomo-start-pause').addEventListener('click', () => {
+          p.running = !p.running;
+          if (p.running) startPomoInterval();
+          else stopPomoInterval();
+          saveState();
+          renderAll();
+        });
+
+        document.getElementById('pomo-reset').addEventListener('click', () => {
+          stopPomoInterval();
+          p.running = false;
+          p.secondsLeft = p.mode === 'focus' ? 25 * 60 : (p.mode === 'short' ? 5 * 60 : 15 * 60);
+          saveState();
+          renderAll();
+        });
+      }
+
+      function startPomoInterval() {
+        stopPomoInterval();
+        pomoInterval = setInterval(() => {
+          if (!state.pomodoro.running) return;
+          if (state.pomodoro.secondsLeft > 0) {
+            state.pomodoro.secondsLeft -= 1;
+            const mins = String(Math.floor(state.pomodoro.secondsLeft / 60)).padStart(2, '0');
+            const secs = String(state.pomodoro.secondsLeft % 60).padStart(2, '0');
+            const el = document.getElementById('pomo-display-time');
+            if (el) el.textContent = `${mins}:${secs}`;
+            const pillTime = document.getElementById('sidebar-pomo-time');
+            if (pillTime) pillTime.textContent = `${mins}:${secs}`;
+          } else {
+            stopPomoInterval();
+            state.pomodoro.running = false;
+            playTone('pomo');
+            if (state.pomodoro.mode === 'focus') {
+              state.pomodoro.sessionsToday += 1;
+              state.pomodoro.minutesToday += 25;
+              const linked = state.tasks.find(t => t.id === state.pomodoro.linkedTaskId);
+              if (linked) linked.focusMinutes = (linked.focusMinutes || 0) + 25;
+              showToast('Focus session complete! +25m logged.');
+            } else {
+              showToast('Break finished!');
+            }
+            state.pomodoro.secondsLeft = state.pomodoro.mode === 'focus' ? 25 * 60 : (state.pomodoro.mode === 'short' ? 5 * 60 : 15 * 60);
+            saveState();
+            renderAll();
+          }
+        }, 1000);
+      }
+
+      function stopPomoInterval() {
+        if (pomoInterval) {
+          clearInterval(pomoInterval);
+          pomoInterval = null;
+        }
+      }
+
+      // ==========================================
+      // 6. HABIT TRACKER VIEW
+      // ==========================================
+      function renderHabitsView(container) {
+        const last7 = Array.from({ length: 7 }, (_, i) => addDays(TODAY_STR, i - 6));
+
+        container.innerHTML = `
+          <div class="flex-1 flex flex-col p-5 overflow-y-auto custom-scroll">
+            <div class="flex items-center justify-between mb-5">
+              <div>
+                <h1 class="text-lg font-bold">Habit Tracker</h1>
+                <p class="text-xs text-[var(--text-muted)]">Build daily consistency across the last 7 days</p>
+              </div>
+              <button id="btn-new-habit" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-white bg-[var(--tt-blue)] hover:bg-[var(--tt-blue-hover)] transition flex items-center gap-1.5">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> New Habit
+              </button>
+            </div>
+
+            <div class="space-y-3 max-w-3xl">
+              ${state.habits.map(h => {
+                const doneToday = h.days.includes(TODAY_STR);
+                return `
+                  <div class="rounded-2xl border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4" style="background-color: var(--bg-sidebar); border-color: var(--border-subtle);">
+                    <div class="flex items-center gap-3">
+                      <span class="w-10 h-10 rounded-xl flex items-center justify-center text-xl bg-black/5 dark:bg-white/10">${h.icon}</span>
+                      <div>
+                        <div class="text-sm font-semibold">${escapeHtml(h.name)}</div>
+                        <div class="text-xs text-[var(--text-muted)]">${h.days.length} total check-ins • ${doneToday ? 'Completed today' : 'Pending today'}</div>
+                      </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      ${last7.map(d => {
+                        const checked = h.days.includes(d);
+                        const dayLabel = parseDateStr(d).toLocaleDateString('en-US', { weekday: 'narrow' });
+                        return `
+                          <button data-habit-id="${h.id}" data-habit-day="${d}" class="habit-day-btn flex flex-col items-center gap-1 group" title="${d}">
+                            <span class="text-[10px] text-[var(--text-muted)]">${dayLabel}</span>
+                            <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs transition border ${checked ? 'text-white border-transparent' : 'border-[var(--border-subtle)] hover:border-[var(--tt-blue)]'}" style="${checked ? `background-color: ${h.color};` : ''}">
+                              ${checked ? '✓' : ''}
+                            </span>
+                          </button>
+                        `;
+                      }).join('')}
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        `;
+
+        container.querySelectorAll('.habit-day-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const h = state.habits.find(x => x.id === btn.dataset.habitId);
+            const day = btn.dataset.habitDay;
+            if (!h) return;
+            if (h.days.includes(day)) {
+              h.days = h.days.filter(d => d !== day);
+            } else {
+              h.days.push(day);
+              playTone('check');
+            }
+            saveState();
+            renderAll();
+          });
+        });
+
+        document.getElementById('btn-new-habit').addEventListener('click', () => {
+          openModal(`
+            <div class="p-5">
+              <h2 class="text-base font-bold mb-3">Create New Habit</h2>
+              <form id="modal-habit-form" class="space-y-3">
+                <input id="modal-habit-name" type="text" placeholder="Habit name (e.g., Meditate 10 mins)" required class="w-full text-sm px-3 py-2 rounded-xl border bg-transparent outline-none" style="border-color: var(--border-subtle);" />
+                <div class="flex justify-end gap-2 pt-2">
+                  <button type="button" onclick="document.getElementById('modal-overlay').classList.add('hidden')" class="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-secondary)]">Cancel</button>
+                  <button type="submit" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--tt-blue)]">Create</button>
+                </div>
+              </form>
+            </div>
+          `);
+          document.getElementById('modal-habit-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            const name = document.getElementById('modal-habit-name').value.trim();
+            if (!name) return;
+            state.habits.push({ id: 'h_' + Date.now(), name, color: '#4772FA', icon: '✨', days: [] });
+            closeModal();
+            saveState();
+            showToast('Habit created');
+            renderAll();
+          });
+        });
+      }
+
+      // ==========================================
+      // Global Modals (Add List, Quick Search, Settings)
+      // ==========================================
+      function openAddListModal() {
+        const colors = ['#4772FA', '#10B981', '#F59E0B', '#E14D43', '#8B5CF6', '#EC4899'];
+        openModal(`
+          <div class="p-5">
+            <h2 class="text-base font-bold mb-3">Add New List</h2>
+            <form id="modal-list-form" class="space-y-3">
+              <input id="modal-list-name" type="text" placeholder="List name" required class="w-full text-sm px-3 py-2 rounded-xl border bg-transparent outline-none" style="border-color: var(--border-subtle);" />
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-[var(--text-secondary)]">Color:</span>
+                ${colors.map((c, idx) => `
+                  <label class="cursor-pointer">
+                    <input type="radio" name="listColor" value="${c}" ${idx === 0 ? 'checked' : ''} class="sr-only peer" />
+                    <span class="w-5 h-5 rounded-full inline-block peer-checked:ring-2 ring-offset-2 ring-[var(--tt-blue)]" style="background-color: ${c};"></span>
+                  </label>
+                `).join('')}
+              </div>
+              <div class="flex justify-end gap-2 pt-2">
+                <button type="button" id="modal-cancel-list" class="px-3 py-1.5 rounded-lg text-xs font-medium text-[var(--text-secondary)]">Cancel</button>
+                <button type="submit" class="px-4 py-1.5 rounded-lg text-xs font-semibold text-white bg-[var(--tt-blue)]">Save</button>
+              </div>
+            </form>
+          </div>
+        `);
+        document.getElementById('modal-cancel-list').addEventListener('click', closeModal);
+        document.getElementById('modal-list-form').addEventListener('submit', (e) => {
+          e.preventDefault();
+          const name = document.getElementById('modal-list-name').value.trim();
+          const color = document.querySelector('input[name="listColor"]:checked')?.value || '#4772FA';
+          if (!name) return;
+          const id = 'list_' + Date.now();
+          state.lists.push({ id, name, color, icon: 'list' });
+          state.activeListId = id;
+          closeModal();
+          saveState();
+          showToast(`List "${name}" created`);
+          renderAll();
+        });
+      }
+
+      function openSearchModal() {
+        openModal(`
+          <div class="p-4">
+            <div class="flex items-center gap-2 pb-3 border-b" style="border-color: var(--border-subtle);">
+              <i data-lucide="search" class="w-4 h-4 text-[var(--text-muted)]"></i>
+              <input id="modal-search-input" type="text" placeholder="Search tasks, notes, or #tags..." class="flex-1 text-sm bg-transparent outline-none" autofocus />
+            </div>
+            <div id="modal-search-results" class="max-h-64 overflow-y-auto custom-scroll mt-2 space-y-1"></div>
+          </div>
+        `);
+        const inp = document.getElementById('modal-search-input');
+        const res = document.getElementById('modal-search-results');
+        function updateResults() {
+          const q = inp.value.trim().toLowerCase();
+          const matches = state.tasks.filter(t => !t.trashed && (
+            t.title.toLowerCase().includes(q) ||
+            (t.notes || '').toLowerCase().includes(q) ||
+            t.tags.some(tg => tg.includes(q))
+          )).slice(0, 12);
+          res.innerHTML = matches.length
+            ? matches.map(t => `
+                <button data-jump-task="${t.id}" class="w-full text-left px-3 py-2 rounded-lg hover:bg-[var(--bg-hover)] flex items-center justify-between text-sm">
+                  <span class="truncate ${t.completed ? 'line-through text-[var(--text-muted)]' : ''}">${escapeHtml(t.title)}</span>
+                  <span class="text-xs text-[var(--text-muted)] shrink-0 ml-2">${getFriendlyDateLabel(t.dueDate)}</span>
+                </button>
+              `).join('')
+            : `<p class="text-xs text-[var(--text-muted)] py-4 text-center">No matching tasks found</p>`;
+          res.querySelectorAll('[data-jump-task]').forEach(btn => {
+            btn.addEventListener('click', () => {
+              state.activeModule = 'tasks';
+              state.activeListId = 'all';
+              state.selectedTaskId = btn.dataset.jumpTask;
+              closeModal();
+              saveState();
+              renderAll();
+            });
+          });
+        }
+        inp.addEventListener('input', updateResults);
+        updateResults();
+        setTimeout(() => inp.focus(), 30);
+      }
+
+      function openSettingsModal() {
+        openModal(`
+          <div class="p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-bold">TickTick Web Settings</h2>
+              <button id="modal-close-settings" class="text-[var(--text-muted)] hover:text-[var(--text-primary)]"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="flex items-center justify-between py-2 border-y" style="border-color: var(--border-subtle);">
+              <span class="text-sm">Appearance Theme</span>
+              <button id="modal-toggle-theme" class="px-3 py-1 rounded-lg text-xs font-semibold border hover:bg-[var(--bg-hover)]" style="border-color: var(--border-subtle);">
+                ${state.theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
+              </button>
+            </div>
+            <div class="flex items-center justify-between gap-2 pb-2 border-b" style="border-color: var(--border-subtle);">
+              <div>
+                <div class="text-sm font-medium">Backup & Restore</div>
+                <div class="text-xs text-[var(--text-muted)]">Export or import tasks, lists, and habits as JSON</div>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button id="modal-export-json" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-[var(--tt-blue)] bg-[var(--tt-blue-soft)] hover:bg-[var(--tt-blue)] hover:text-white transition">Export</button>
+                <button id="modal-import-json-btn" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border hover:bg-[var(--bg-hover)] transition" style="border-color: var(--border-subtle);">Import</button>
+                <input id="modal-import-json-input" type="file" accept=".json,application/json" class="hidden" />
+              </div>
+            </div>
+            <div class="flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Reset Demo Data</div>
+                <div class="text-xs text-[var(--text-muted)]">Restore default tasks, lists, and habits</div>
+              </div>
+              <button id="modal-reset-demo" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-rose-600 bg-rose-500/10 hover:bg-rose-500/20 transition">Reset</button>
+            </div>
+          </div>
+        `);
+        document.getElementById('modal-close-settings').addEventListener('click', closeModal);
+        document.getElementById('modal-toggle-theme').addEventListener('click', () => {
+          state.theme = state.theme === 'dark' ? 'light' : 'dark';
+          saveState();
+          closeModal();
+          renderAll();
+        });
+        document.getElementById('modal-export-json').addEventListener('click', () => {
+          const payload = {
+            version: 1,
+            exportedAt: new Date().toISOString(),
+            data: {
+              theme: state.theme,
+              lists: state.lists,
+              tasks: state.tasks,
+              habits: state.habits,
+              pomodoro: state.pomodoro
+            }
+          };
+          const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `ticktick-backup-${TODAY_STR}.json`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          URL.revokeObjectURL(url);
+          showToast('Backup exported');
+        });
+        const importInput = document.getElementById('modal-import-json-input');
+        document.getElementById('modal-import-json-btn').addEventListener('click', () => {
+          importInput.click();
+        });
+        importInput.addEventListener('change', (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const parsed = JSON.parse(String(reader.result || '{}'));
+              const src = parsed.data || parsed;
+              if (!Array.isArray(src.tasks) || !Array.isArray(src.lists)) {
+                showToast('Invalid backup file');
+                return;
+              }
+              state.lists = src.lists;
+              state.tasks = src.tasks;
+              if (Array.isArray(src.habits)) state.habits = src.habits;
+              if (src.theme === 'dark' || src.theme === 'light') state.theme = src.theme;
+              if (src.pomodoro) state.pomodoro = { ...state.pomodoro, ...src.pomodoro, running: false };
+              state.selectedTaskId = state.tasks.find(t => !t.trashed)?.id || null;
+              saveState();
+              closeModal();
+              showToast('Backup imported successfully');
+              renderAll();
+            } catch (_) {
+              showToast('Could not read backup JSON');
+            }
+          };
+          reader.readAsText(file);
+        });
+        document.getElementById('modal-reset-demo').addEventListener('click', () => {
+          state = createDefaultState();
+          saveState();
+          closeModal();
+          showToast('Demo data restored');
+          renderAll();
+        });
+      }
+
+      // ==========================================
+      // Utilities & Global Event Bindings
+      // ==========================================
+      function escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+      function escapeAttr(str) {
+        return escapeHtml(str).replace(/"/g, '&quot;');
+      }
+
+      function renderAll() {
+        applyTheme();
+        renderRail();
+        renderSidebar();
+        renderMainWorkspace();
+        const pill = document.getElementById('sidebar-pomo-pill');
+        if (pill) {
+          pill.classList.toggle('hidden', !state.pomodoro.running);
+        }
+        lucide.createIcons();
+      }
+
+      // Rail Navigation
+      document.querySelectorAll('.rail-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          state.activeModule = btn.dataset.nav;
+          saveState();
+          renderAll();
+        });
+      });
+
+      // Safari Chrome & Top Controls
+      document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
+        state.sidebarOpen = !state.sidebarOpen;
+        saveState();
+        renderAll();
+      });
+      document.getElementById('btn-safari-reload').addEventListener('click', () => {
+        showToast('Synced with TickTick Web');
+      });
+      document.getElementById('btn-theme-toggle').addEventListener('click', () => {
+        state.theme = state.theme === 'dark' ? 'light' : 'dark';
+        saveState();
+        renderAll();
+      });
+      document.getElementById('btn-hide-safari').addEventListener('click', () => {
+        document.getElementById('safari-chrome').classList.add('hidden');
+        document.getElementById('btn-show-safari').classList.remove('hidden');
+      });
+      document.getElementById('btn-show-safari').addEventListener('click', () => {
+        document.getElementById('safari-chrome').classList.remove('hidden');
+        document.getElementById('btn-show-safari').classList.add('hidden');
+      });
+
+      document.getElementById('btn-add-list').addEventListener('click', openAddListModal);
+      document.getElementById('btn-quick-search-top').addEventListener('click', openSearchModal);
+      document.getElementById('btn-rail-search').addEventListener('click', openSearchModal);
+      document.getElementById('btn-rail-settings').addEventListener('click', openSettingsModal);
+      document.getElementById('btn-profile').addEventListener('click', openSettingsModal);
+      document.getElementById('sidebar-pomo-pill').addEventListener('click', () => {
+        state.activeModule = 'pomodoro';
+        saveState();
+        renderAll();
+      });
+
+      // Keyboard Shortcuts
+      document.addEventListener('keydown', (e) => {
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          openSearchModal();
+        } else if (e.key === 'Escape') {
+          closeModal();
+        } else if (e.key === 'n' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+          const inp = document.getElementById('quick-add-input');
+          if (inp) {
+            e.preventDefault();
+            inp.focus();
+          }
+        }
+      });
+
+      // Initial Render
+      renderAll();
+    })();
+  </script>
+</body>
+</html>
